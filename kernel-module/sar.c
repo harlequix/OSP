@@ -31,6 +31,26 @@ static void __exit sar_cleanup(void)
 {
 	remove_proc_entry(PROCFS_NAME, NULL);
 }
+static struct ctl_table prompt_table[] = {
+	 { .ctl_name = CTL_UNNUMBERED,
+	  .procname = "prompt",
+	  .maxlen = sizeof(int),
+	  .mode = 0600,
+	  .data = &global_var,
+	  .proc_handler = &proc_dointvec_minmax,
+	  .extra1 = &min_val, .extra2 = &max_val,
+	  }, {} 
+};
+	  
+static struct ctl_table sample_parent_table[] = {
+	{ .ctl_name = CTL_KERN, .procname = "kernel",
+	  .mode = 0555,
+	  .child = prompt_table,
+	}, {} 
+};
+if (!register_sysctl_table(sample_parent_table)) {
+	 return -EFAULT;
+ }
 
 module_init(sar_init);
 module_exit(sar_cleanup);
