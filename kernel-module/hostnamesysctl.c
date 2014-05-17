@@ -6,9 +6,6 @@
 #include <errno.h>
 #include <string.h>
 
-#if LINUX_VERSION_CODE < 0x010339
-#error "This program needs linux-1.3.57 or newer to compile"
-#endif
 
 int main(int argc, char **argv)
 {
@@ -22,8 +19,7 @@ int main(int argc, char **argv)
 		name, namelen,
 		buffer, &len, /* old */
 		argv[1], 0,  /* new */
-		};
-
+		}
 	if (argc == 1) {
 		args.newval = NULL; /* don't change */
 	} else if (argc == 2) {

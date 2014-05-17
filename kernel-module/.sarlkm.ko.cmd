@@ -1,0 +1,1 @@
+cmd_/home/osp/ospsshfs/sarlkm.ko := ld -r -m elf_i386 -T /usr/src/linux-headers-2.6.32-38-generic-pae/scripts/module-common.lds --build-id -o /home/osp/ospsshfs/sarlkm.ko /home/osp/ospsshfs/sarlkm.o /home/osp/ospsshfs/sarlkm.mod.o
