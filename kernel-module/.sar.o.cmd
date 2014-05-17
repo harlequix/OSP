@@ -481,6 +481,10 @@ deps_/home/osp/ospsshfs/sar.o := \
     $(wildcard include/config/x86/wp/works/ok.h) \
     $(wildcard include/config/x86/intel/usercopy.h) \
   /usr/src/linux-headers-2.6.32-38-generic-pae/arch/x86/include/asm/uaccess_32.h \
+  include/linux/sysctl.h \
+  include/linux/unistd.h \
+  /usr/src/linux-headers-2.6.32-38-generic-pae/arch/x86/include/asm/unistd.h \
+  /usr/src/linux-headers-2.6.32-38-generic-pae/arch/x86/include/asm/unistd_32.h \
 
 /home/osp/ospsshfs/sar.o: $(deps_/home/osp/ospsshfs/sar.o)
 

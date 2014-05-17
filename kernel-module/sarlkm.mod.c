@@ -18,13 +18,14 @@ static const struct modversion_info ____versions[]
 __used
 __attribute__((section("__versions"))) = {
 	{ 0xcbef08d, "module_layout" },
+	{ 0xd7fae2d6, "register_sysctl_table" },
 	{ 0xc274e480, "remove_proc_entry" },
 	{ 0x3c2c5af5, "sprintf" },
 	{ 0x7d11c268, "jiffies" },
-	{ 0x41344088, "param_get_charp" },
 	{ 0xb4390f9a, "mcount" },
+	{ 0xe2cde27, "proc_dostring" },
+	{ 0x48f993d3, "unregister_sysctl_table" },
 	{ 0x43a6b9f6, "create_proc_entry" },
-	{ 0x6ad065f4, "param_set_charp" },
 	{ 0xd6c963c, "copy_from_user" },
 };
 
@@ -34,4 +35,4 @@ __attribute__((section(".modinfo"))) =
 "depends=";
 
 
-MODULE_INFO(srcversion, "82E4B6B89BB531C3FC8F7E8");
+MODULE_INFO(srcversion, "7EBA6CD360A2285CDCE19BD");

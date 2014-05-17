@@ -19,7 +19,7 @@ int main(int argc, char **argv)
 		name, namelen,
 		buffer, &len, /* old */
 		argv[1], 0,  /* new */
-		}
+		};
 	if (argc == 1) {
 		args.newval = NULL; /* don't change */
 	} else if (argc == 2) {
