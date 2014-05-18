@@ -5,7 +5,7 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #define PROCFS_NAME 		"sarlkm"
-#define PROCFS_MAX_SIZE		1024
+#define PROCFS_MAX_SIZE		80
 #include <asm/uaccess.h>
 #include <linux/sysctl.h>
 #include <linux/unistd.h>
@@ -20,20 +20,20 @@ sar_proc_read(char *buffer,
 	      char **buffer_location,
 	      off_t offset, int buffer_length, int *eof, void *data)
 {
-  return sprintf(buffer, "%s,Kernel Panic,%lu\n",prompt_param, jiffies/HZ);
+  return sprintf(buffer, "%s,lastminute,%lu\n",prompt_param, jiffies/HZ);
 }
 
 
 int procfile_write(struct file *file, const char *buffer, unsigned long count,
 		   void *data)
 {
-	/* get buffer size */
+
 	procfs_buffer_size = count;
 	if (procfs_buffer_size > PROCFS_MAX_SIZE ) {
 		procfs_buffer_size = PROCFS_MAX_SIZE;
 	}
 	
-	/* write data to the buffer */
+
 	if ( copy_from_user(prompt_param, buffer, procfs_buffer_size) ) {
 		return -EFAULT;
 	}
@@ -67,9 +67,9 @@ static ctl_table test_table[] = {
 static int __init sar_init(void)
 {
 	sar_table_header = register_sysctl_table(test_root_table);
-  /*if (!register_sysctl_table(test_root_table)) {
+  if (!table_header) {
 	 return -EFAULT;
- }*/
+ }
  
   struct proc_dir_entry *sarlkm;
   sarlkm = create_proc_entry( PROCFS_NAME, 0666,NULL );
