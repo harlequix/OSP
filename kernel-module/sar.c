@@ -11,7 +11,7 @@
 #include <linux/unistd.h>
 static unsigned long procfs_buffer_size = 0;
 static char prompt_param[PROCFS_MAX_SIZE];
-module_param_string(prompt_param, PROCFS_MAX_SIZE, 0000);
+module_param_string(prompt_param,prompt_param, PROCFS_MAX_SIZE, 0000);
 MODULE_PARM_DESC(prompt_param, "prompt string");
 static struct ctl_table_header *sar_table_header;
 
@@ -67,7 +67,7 @@ static ctl_table test_table[] = {
 static int __init sar_init(void)
 {
 	sar_table_header = register_sysctl_table(test_root_table);
-  if (!table_header) {
+  if (!sar_table_header) {
 	 return -EFAULT;
  }
  
