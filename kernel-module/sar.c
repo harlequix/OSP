@@ -7,13 +7,12 @@
 #define PROCFS_NAME 		"sarlkm"
 #define PROCFS_MAX_SIZE		1024
 #include <asm/uaccess.h>
-      #include <linux/sysctl.h>
-            #include <linux/unistd.h>
+#include <linux/sysctl.h>
+#include <linux/unistd.h>
 static unsigned long procfs_buffer_size = 0;
 static char prompt_param[PROCFS_MAX_SIZE];
-//*prompt_param = "prompt";
-//module_param(prompt_param, charp, 0000);
-//MODULE_PARM_DESC(prompt_param, "prompt string");
+module_param_string(prompt_param, PROCFS_MAX_SIZE, 0000);
+MODULE_PARM_DESC(prompt_param, "prompt string");
 static struct ctl_table_header *sar_table_header;
 
 int 
@@ -65,45 +64,18 @@ static ctl_table test_table[] = {
             {}
     };
 
-
-
-/*static struct ctl_table prompt_table[] = {
-	 { .ctl_name = CTL_UNNUMBERED,
-	  .procname = "prompt",
-	  .maxlen = sizeof(int),
-	  .mode = 0600,
-	  .data=&procfs_buffer,
-	  .proc_handler = &sar_proc_read,
-	  //.extra1 = &min_val,
-	  //.extra2 = &max_val,
-	  }, {} 
-};
-static struct ctl_table sample_parent_table[] = {
-	{ .ctl_name = CTL_KERN, .procname = "kernel",
-	  .mode = 0555,
-	  .child = prompt_table,
-	}, {} 
-};*/
-	
-
-
-
 static int __init sar_init(void)
 {
+	sar_table_header = register_sysctl_table(test_root_table);
   /*if (!register_sysctl_table(test_root_table)) {
 	 return -EFAULT;
  }*/
- sar_table_header = register_sysctl_table(test_root_table);
+ 
   struct proc_dir_entry *sarlkm;
   sarlkm = create_proc_entry( PROCFS_NAME, 0666,NULL );
   sarlkm->read_proc = sar_proc_read;
   sarlkm->write_proc= procfile_write;
   
-	//sarlkm->owner 	  = THIS_MODULE;
-	//sarlkm->mode 	  = S_IFREG | S_IRUGO;
-	//sarlkm->uid 	  = 0;
-	//sarlkm->gid 	  = 0;
-	//sarlkm->size 	  = 37;*/
   return 0;
 }
 
