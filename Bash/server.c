@@ -14,6 +14,8 @@
 #include <sys/stat.h>
 
 #define PORT 9000
+#define ERROR "-1"
+#define ERROR_LENGTH 2
 
 int main()
 {	
@@ -76,24 +78,28 @@ int main()
 			
 				//put, get oder Kommando
 				if (strcmp(argv[0],"put")==0){
-					int fileDescriptor=open(argv[1],O_WRONLY | O_CREAT | O_APPEND, 00644 );
-			  
-			    	if (write(fileDescriptor, argv[2], strlen(argv[2])) != strlen(argv[2])){
-			    		write(2, "There was an error writing to testfile.txt\n", 43);
-			    		return -1;
-			    	}
-					
-			    	write(connection,buffer,strlen(buffer));
+				  int fileDescriptor=open(argv[1],O_WRONLY | O_CREAT | O_APPEND, 00644 );
+				  if (write(fileDescriptor, argv[2], strlen(argv[2])) != strlen(argv[2])){
+					  write(connection, ERROR, ERROR_LENGTH);
+				  }
+				  else{
+				    write(connection,buffer,strlen(buffer));
+				  }
 				}
 				else {
-					if (strcmp(argv[0],"get")==0) {
-					int fileDescriptor=open(argv[1], O_RDONLY);
+				    if (strcmp(argv[0],"get")==0) {
+				      int fileDescriptor=open(argv[1], O_RDONLY);
+				      if(fileDescriptor){
+					write(connection, ERROR, ERROR_LENGTH);
+				      }
+				      else{
 					size_t size;
-				    struct stat st;
-				    stat(argv[1], &st);
-				    size = st.st_size;
-				    read(fileDescriptor ,buffer,size);
-				    write(connection,buffer,strlen(buffer));
+					struct stat st;
+					stat(argv[1], &st);
+					size = st.st_size;
+					read(fileDescriptor ,buffer,size);
+					write(connection,buffer,strlen(buffer));
+				      }
 					}
 					else{
 						//Pipe erstellen und stdout auf Pipe umlenken

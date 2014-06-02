@@ -56,19 +56,22 @@ int main()
 			i++;
 		  }
 		  argv[i]=0;
-		  
-		 
-		 
-		 FILE* f=fopen(argv[1],"rb");
-		 char foo[32767];
-		 fread(foo, 32767,1,f);
-		 strncat(buffer,foo,2000);
-		write(sockid,buffer,strlen(buffer));
-		bzero(buffer,32768);
-		//lesen und ausgeben von Antwort
-		read(sockid,buffer,32767);
-		printf("%s\n",buffer);	
-		 
+		   int f= open(argv[1],O_RDONLY);
+		  if(f){
+		   printf("An error has occured\n");
+		   bzero(buffer,32768);
+		  }
+		  else{
+		    char foo[32767];
+		    read(f,foo, 32767);
+		    strncat(buffer,foo,2000);
+		    write(sockid,buffer,strlen(buffer));
+		    bzero(buffer,32768);
+		    //lesen und ausgeben von Antwort
+		    read(sockid,buffer,32767);
+		    printf("%s\n",buffer);
+		    close(f);
+		  }	
 		}
 		
 		if(strncmp("get", buffer ,3)==0){
@@ -88,10 +91,15 @@ int main()
 		  write(sockid,buffer,strlen(buffer));
 		  bzero(buffer,32768);
 		  read(sockid,buffer,32767);
-		  argv[1][strlen ( argv[1] ) - 1] = '\0';
-
-		  int f= open(argv[1],O_WRONLY | O_CREAT | O_APPEND, 00644);
-		  write(f,buffer,strlen(buffer));
+		  if(!strncmp("-1", buffer, 2)){
+		    printf("An error has occured\n");
+		  }
+		  else{
+		    argv[1][strlen ( argv[1] ) - 1] = '\0';
+		    int f= open(argv[1],O_WRONLY | O_CREAT | O_APPEND, 00644);
+		    write(f,buffer,strlen(buffer));
+		    close(f);
+		  }	
 		}
 		  
 		
