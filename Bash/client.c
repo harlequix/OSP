@@ -42,6 +42,7 @@ int main()
 			break;
 		}
 		if(strncmp("put",buffer,3)==0){
+		  //TODO: remove unecessary strcpy
 		  buffer[strlen ( buffer ) - 1] = ' ';
 		  int i;
 		  char buffer_tmp[strlen(buffer)+1];
@@ -57,11 +58,12 @@ int main()
 		  }
 		  argv[i]=0;
 		   int f= open(argv[1],O_RDONLY);
-		  if(f){
+		  if(!f){
 		   printf("An error has occured\n");
 		   bzero(buffer,32768);
 		  }
 		  else{
+		    //TODO: Fix buffer underflow
 		    char foo[32767];
 		    read(f,foo, 32767);
 		    strncat(buffer,foo,2000);
