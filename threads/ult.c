@@ -25,6 +25,7 @@ TAILQ_HEAD(,tailque_entry) blocking_queue;
 TAILQ_HEAD(,tailque_entry) zombie_queue;
 jmp_buf init;
 void is_needed_by_process(int id);
+void schedule();
 
 /*
  This function only exists to tell the process to use an empty stack for the thread
@@ -216,16 +217,13 @@ void ult_init(ult_func f) {
 	ult_spawn(f);
 	struct tailque_entry *tcb_process= TAILQ_FIRST(&running_queue);
 	if(setjmp(init)){
-		printf("I'm back %d \n",TAILQ_EMPTY(&running_queue));
+		schedule();
 	}
 	else{
 		longjmp(tcb_process->context.context,1);
 	}
-	
-	
-	
-	
 }
+
 void is_needed_by_process(int tid){
 	struct tailque_entry *pid;
 	TAILQ_FOREACH(pid,&blocking_queue,entries){
@@ -235,4 +233,8 @@ void is_needed_by_process(int tid){
 			return;
 		}
 	}
+}
+void schedule(){
+	struct tailque_entry *thread=TAILQ_FIRST(&running_queue);
+	longjmp(thread->context.context,1);
 }
