@@ -1,8 +1,8 @@
 
-all:
-	gcc -Wall -Werror -c ult.c
-	gcc -Wall -Werror -c tcb.c
-	gcc -Wall -Werror -c test_ult.c
+default:
+	gcc -Wall -Werror -g -c ult.c
+	gcc -Wall -Werror -g -c tcb.c
+	gcc -Wall -Werror -g -c test_ult.c
 	gcc test_ult.o ult.o tcb.o -o test_ult
 
 clean:

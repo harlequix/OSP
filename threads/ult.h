@@ -1,5 +1,3 @@
-
-
 /* type of function executed by thread */
 typedef void (*ult_func)();
 

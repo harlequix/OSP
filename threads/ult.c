@@ -6,7 +6,6 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
-#include <malloc.h>
 #include <fcntl.h>
 #include "ult.h"
 #include "tcb.h"
@@ -15,24 +14,33 @@
 #define STACK 1024*64
 static int id=0;
 
- struct tailque_entry{
+struct tailque_entry{
  	tcb context;
  	TAILQ_ENTRY(tailque_entry) entries;
  	//TODO: eventually unifying tcb and tailque_entry
- };
+};
+//Deklaration der Queues
 TAILQ_HEAD(,tailque_entry) running_queue;
 TAILQ_HEAD(,tailque_entry) blocking_queue;
 TAILQ_HEAD(,tailque_entry) zombie_queue;
+jmp_buf init;
+
 
 /*
  This function only exists to tell the process to use an empty stack for the thread
  */
 jmp_buf spawn_buf;
+ult_func global_funct_ptr;
 
 void signalHandlerSpawn( ){	
+	ult_func handler_func_ptr= global_funct_ptr;
 	if(setjmp(spawn_buf)){
+		handler_func_ptr();
+		//printf("Jump successful!\n");
+		longjmp(init,1);
 	}
-
+	return;
+	
 }
 
 
@@ -50,10 +58,10 @@ int ult_spawn(ult_func f) {
   	struct sigaction sa;
   	spawn=(tcb*)malloc(sizeof(tcb));
   	spawn->id=id;
-
+	
   	printf("Setting up stack\n");
-
-  // Create the new stack
+	
+	// Create the new stack
  	stack.ss_flags = 0;
  	stack.ss_size = STACK;
   	stack.ss_sp = malloc(STACK );
@@ -61,21 +69,22 @@ int ult_spawn(ult_func f) {
     	perror( "Could not allocate stack." );
     	exit( 1 );
   	}
-
+	
   	printf("Altering Signal\n");
-
+	
   	sa.sa_flags = SA_ONSTACK;
   	sa.sa_handler=&signalHandlerSpawn;
   	sigemptyset( &sa.sa_mask );
   	sigaction( SIGUSR1, &sa, 0 );
-
+	
   	printf("raising Signal\n");
-
+  	global_funct_ptr=f;
+	
   	raise( SIGUSR1 );
-
+	
   	printf("back from signalhandler\n");
   	printf("Saving tcb and pushing into the queue\n");
-
+	
   	*spawn->context=*spawn_buf;
   	spawn->id=id;
   	spawn->status=0;
@@ -85,11 +94,11 @@ int ult_spawn(ult_func f) {
 	item->context=*spawn;
 	TAILQ_INSERT_TAIL(&running_queue, item, entries);
 	printf("checking if process is in queue\n");
-	TAILQ_FOREACH(item, &running_queue, entries){
-		printf("TID: %d\n", item->context.id);
-	}
-
-
+	//TAILQ_FOREACH(item, &running_queue, entries){
+	//	printf("TID: %d\n", item->context.id);
+	//}
+	
+	
 	return id;		
 }
 
@@ -102,12 +111,17 @@ int ult_spawn(ult_func f) {
 void ult_yield() {
 }
 
-
 // current thread exits
 /*	Wird innerhalb eines Threads ult_exit() aufgerufen, so wird der Thread
  zum Zombie und der Exit-Status wird abgespeichert.
  */
 void ult_exit(int status) {
+	struct tailque_entry *tcb = TAILQ_FIRST(&running_queue);
+	tcb->context.status=status;
+	TAILQ_INSERT_TAIL(&zombie_queue, tcb, entries);
+	TAILQ_REMOVE(&running_queue, tcb, entries);
+	printf("FOOOOOOBAR\n");
+	longjmp(init,1);
 }
 
 
@@ -145,39 +159,45 @@ int ult_waitpid(int tid, int *status) {
  Systemrufe blockieren koennen.
  */
 int ult_read(int fd, void *buf, int count) {
- return 0;
+	return 0;
 }
 
 
 // start scheduling and spawn a thread running function f
 /*	Die Funktion ult_init() initialisiert die Bibliothek (insbesondere die Datenstrukturen
  des Schedulers wie z.B. Thread-Listen) und muss vor allen anderen Funktionen aufgerufen
- werden. Sie erzeugt einen einzigen Thread (analog zum Init-Threadâ bei Unix), aus
+ werden. Sie erzeugt einen einzigen Thread (analog zum Init-Thread‰ bei Unix), aus
  welchem heraus dann alle anderen Threads erzeugt werden und welcher danach mit
  ult_waitpid() auf das Ende aller Threads wartet. 
  */
- /*struct tailque_entry{
- 	tcb context;
- 	TAILQ_ENTRY(tailque_entry) entries;
- 	//TODO: eventually unifying tcb and tailque_entry
+/*struct tailque_entry{
+ tcb context;
+ TAILQ_ENTRY(tailque_entry) entries;
+ //TODO: eventually unifying tcb and tailque_entry
  };
-TAILQ_HEAD(,tailque_entry) running_queue;
-TAILQ_HEAD(,tailque_entry) blocking_queue;
-TAILQ_HEAD(,tailque_entry) zombie_queue;
-*/
-jmp_buf init;
+ TAILQ_HEAD(,tailque_entry) running_queue;
+ TAILQ_HEAD(,tailque_entry) blocking_queue;
+ TAILQ_HEAD(,tailque_entry) zombie_queue;
+ */
+int jmpinfo;
 void ult_init(ult_func f) {
-	//struct tailque_entry *item;
-
+	
 	printf("Setting up queue\n");
 	TAILQ_INIT(&running_queue);
 	TAILQ_INIT(&blocking_queue);
 	TAILQ_INIT(&zombie_queue);
 	printf("Spawing first process\n");
+	
 	ult_spawn(f);
-	ult_spawn(f);
-	ult_spawn(f);
-
-
-
+	struct tailque_entry *tcb_process= TAILQ_FIRST(&running_queue);
+	if(setjmp(init)){
+		printf("I'm back %d \n",TAILQ_EMPTY(&running_queue));
+	}
+	else{
+		longjmp(tcb_process->context.context,1);
+	}
+	
+	
+	
+	
 }
