@@ -24,7 +24,7 @@ TAILQ_HEAD(,tailque_entry) running_queue;
 TAILQ_HEAD(,tailque_entry) blocking_queue;
 TAILQ_HEAD(,tailque_entry) zombie_queue;
 jmp_buf init;
-
+void is_needed_by_process(int id);
 
 /*
  This function only exists to tell the process to use an empty stack for the thread
@@ -109,7 +109,16 @@ int ult_spawn(ult_func f) {
  auf den vom Scheduler ausgewaehlten Thread.
  */
 void ult_yield() {
+	struct tailque_entry *tcb = TAILQ_FIRST(&running_queue);
+	
+	//TODO: check for identical process hereafter (or if running_queue only continues only on )
+	TAILQ_INSERT_TAIL(&running_queue, tcb, entries);
+	TAILQ_REMOVE(&running_queue, tcb, entries);
+	printf("FOOOOOOBAR\n");
+	longjmp(init,1);
 }
+
+
 
 // current thread exits
 /*	Wird innerhalb eines Threads ult_exit() aufgerufen, so wird der Thread
@@ -118,6 +127,7 @@ void ult_yield() {
 void ult_exit(int status) {
 	struct tailque_entry *tcb = TAILQ_FIRST(&running_queue);
 	tcb->context.status=status;
+	is_needed_by_process(tcb->context.id);
 	TAILQ_INSERT_TAIL(&zombie_queue, tcb, entries);
 	TAILQ_REMOVE(&running_queue, tcb, entries);
 	printf("FOOOOOOBAR\n");
@@ -139,6 +149,21 @@ void ult_exit(int status) {
  Thread die CPU erhaelt).
  */
 int ult_waitpid(int tid, int *status) {
+	struct tailque_entry *blocked = TAILQ_FIRST(&running_queue);
+	struct tailque_entry *pid;
+	setjmp(blocked->context.context);
+	TAILQ_FOREACH(pid,&zombie_queue,entries){
+		if(pid->context.id==tid){
+			*status=pid->context.status;
+			return 0;
+		}
+	}
+	blocked->context.is_waiting_for=tid;
+	TAILQ_INSERT_TAIL(&blocking_queue, blocked, entries);
+	TAILQ_REMOVE(&running_queue, blocked, entries);
+	longjmp(init,1);
+	
+
 	return -1;	//return 'error'
 }
 
@@ -166,7 +191,7 @@ int ult_read(int fd, void *buf, int count) {
 // start scheduling and spawn a thread running function f
 /*	Die Funktion ult_init() initialisiert die Bibliothek (insbesondere die Datenstrukturen
  des Schedulers wie z.B. Thread-Listen) und muss vor allen anderen Funktionen aufgerufen
- werden. Sie erzeugt einen einzigen Thread (analog zum Init-Thread‰ bei Unix), aus
+ werden. Sie erzeugt einen einzigen Thread (analog zum Init-Threadâ€° bei Unix), aus
  welchem heraus dann alle anderen Threads erzeugt werden und welcher danach mit
  ult_waitpid() auf das Ende aller Threads wartet. 
  */
@@ -200,4 +225,14 @@ void ult_init(ult_func f) {
 	
 	
 	
+}
+void is_needed_by_process(int tid){
+	struct tailque_entry *pid;
+	TAILQ_FOREACH(pid,&blocking_queue,entries){
+		if(pid->context.id==tid){
+			TAILQ_INSERT_HEAD(&running_queue,pid,entries);
+			TAILQ_REMOVE(&zombie_queue,pid,entries);
+			return;
+		}
+	}
 }

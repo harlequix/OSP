@@ -14,6 +14,7 @@ typedef struct tcb_str {
 	int status;
 	jmp_buf context;
 	int id;
+	int is_waiting_for;
 	/* rest */
 } tcb;
 
