@@ -19,6 +19,7 @@ struct tailque_entry{
  	TAILQ_ENTRY(tailque_entry) entries;
  	//TODO: eventually unifying tcb and tailque_entry
 };
+void print_stack_pointer( char *info );
 //Deklaration der Queues
 TAILQ_HEAD(,tailque_entry) running_queue;
 TAILQ_HEAD(,tailque_entry) blocking_queue;
@@ -35,9 +36,11 @@ ult_func global_funct_ptr;
 
 void signalHandlerSpawn( ){	
 	ult_func handler_func_ptr= global_funct_ptr;
-	printf("%p\n", handler_func_ptr );
+	printf("Funtion Pointer vor Sprung: %p\n", handler_func_ptr );
+	print_stack_pointer("Stackpointer vor dem Sprung");
 	if(setjmp(spawn_buf)){
-		printf("foobar\n");
+		printf("Funktion Pointer nach Sprung\n");
+		print_stack_pointer("Stackpointer nach dem Sprung");
 		printf("%p\n", handler_func_ptr );
 		handler_func_ptr();
 		//printf("Jump successful!\n");
@@ -269,4 +272,17 @@ void print_queue(){
 	TAILQ_FOREACH(pid,&zombie_queue,entries){
 		printf("%d \n", pid->context.id );
 	}
+}
+
+void print_stack_pointer( char *info )
+{
+  long stackp = 0;
+  long basep = 0;
+
+  __asm__ __volatile__ ( "mov %%ebp, %%eax":"=a" (basep));
+  __asm__ __volatile__ ( "mov %%esp, %%eax":"=a" (stackp));
+  
+  printf("%s Stackpointer : %lu Basepointer: %lu\n",info,stackp,basep);
+
+  return;
 }
