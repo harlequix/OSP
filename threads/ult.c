@@ -175,13 +175,7 @@ int ult_waitpid(int tid, int *status) {
 	print_queue();
 	TAILQ_INSERT_HEAD(&blocking_queue, blocked, entries);
 
-	blocked=TAILQ_FIRST(&running_queue);
-	print_queue();
-	TAILQ_REMOVE(&running_queue, blocked, entries);
-	print_queue();
-	TAILQ_INSERT_HEAD(&blocking_queue, blocked, entries);
-	print_queue();
-	//longjmp(init,1);
+	longjmp(init,1);
 	
 
 	return -1;	//return 'error'
