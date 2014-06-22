@@ -9,8 +9,9 @@ time_t start_time;
 
 void threadA()
 {
+    
 	ult_exit(0);
-    print_queue();
+
 }
 
 void threadB()
@@ -20,12 +21,12 @@ void threadB()
 
 void myInit()
 {
-    int cpid[2], i, status;
+    int cpid[2],i, status;
     printf("spawn A\n"); fflush(stdout);
     cpid[0] = ult_spawn(threadA);
     printf("spawn B\n"); fflush(stdout);
     cpid[1] = ult_spawn(threadB);
-    print_queue();
+    //print_queue();
     for (i = 0; i < 2; i++) {
         printf("waiting for cpid[%d] = %d\n", i, cpid[i]); fflush(stdout);
         if (ult_waitpid(cpid[i], &status) == -1) {

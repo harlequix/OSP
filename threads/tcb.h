@@ -2,6 +2,8 @@
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
+typedef void (*ult_func)();
+
 
 
 #define STACKSIZE	64*1024	//approriate stack size
@@ -15,6 +17,7 @@ typedef struct tcb_str {
 	jmp_buf context;
 	int id;
 	int is_waiting_for;
+	ult_func function;
 	/* rest */
 } tcb;
 

@@ -35,14 +35,14 @@ jmp_buf spawn_buf;
 ult_func global_funct_ptr;
 
 void signalHandlerSpawn( ){	
-	ult_func handler_func_ptr= global_funct_ptr;
-	printf("Funtion Pointer vor Sprung: %p\n", handler_func_ptr );
+	//ult_func handler_func_ptr= global_funct_ptr;
+	//printf("Funtion Pointer vor Sprung: %p\n", handler_func_ptr );
 	print_stack_pointer("Stackpointer vor dem Sprung");
 	if(setjmp(spawn_buf)){
 		printf("Funktion Pointer nach Sprung\n");
 		print_stack_pointer("Stackpointer nach dem Sprung");
-		printf("%p\n", handler_func_ptr );
-		handler_func_ptr();
+		//printf("%p\n", handler_func_ptr );
+		global_funct_ptr();
 		//printf("Jump successful!\n");
 		longjmp(init,1);
 	}
@@ -92,7 +92,8 @@ int ult_spawn(ult_func f) {
   	printf("back from signalhandler\n");
   	printf("Saving tcb and pushing into the queue\n");
 	
-  	*spawn->context=*spawn_buf;
+  	memcpy(spawn->context, spawn_buf, sizeof(jmp_buf));
+  	spawn->function=f;
   	spawn->id=id;
   	spawn->status=0;
   	spawn->stack=stack;
@@ -119,8 +120,9 @@ void ult_yield() {
 	struct tailque_entry *tcb = TAILQ_FIRST(&running_queue);
 	
 	//TODO: check for identical process hereafter (or if running_queue only continues only on )
-	TAILQ_INSERT_TAIL(&running_queue, tcb, entries);
 	TAILQ_REMOVE(&running_queue, tcb, entries);
+	TAILQ_INSERT_TAIL(&running_queue, tcb, entries);
+	print_queue();
 	printf("FOOOOOOBAR\n");
 	longjmp(init,1);
 }
@@ -133,11 +135,12 @@ void ult_yield() {
  */
 void ult_exit(int status) {
 	struct tailque_entry *tcb = TAILQ_FIRST(&running_queue);
-	tcb->context.status=status;
-	is_needed_by_process(tcb->context.id);
-
-	TAILQ_INSERT_TAIL(&zombie_queue, tcb, entries);
+	status=tcb->context.status;
+	
 	TAILQ_REMOVE(&running_queue, tcb, entries);
+	TAILQ_INSERT_HEAD(&zombie_queue, tcb, entries);
+	is_needed_by_process(tcb->context.id);
+	print_queue();
 	printf("FOOOOOOBAR\n");
 	longjmp(init,1);
 }
@@ -161,21 +164,26 @@ int ult_waitpid(int tid, int *status) {
 	struct tailque_entry *pid;
 	printf("I'm in waitpid\n");
 	print_queue();
-	setjmp(blocked->context.context);
-	TAILQ_FOREACH(pid,&zombie_queue,entries){
+	if(!setjmp(blocked->context.context)){
+	  TAILQ_FOREACH(pid,&zombie_queue,entries){
 		if(pid->context.id==tid){
 			*status=pid->context.status;
 			return 0;
 		}
+	  }
+	  blocked->context.is_waiting_for=tid;
+	  printf("Blocking Thread:%d \n", blocked->context.id);
+	  print_queue();
+	  TAILQ_REMOVE(&running_queue, blocked, entries);
+	  
+	  TAILQ_INSERT_HEAD(&blocking_queue, blocked, entries);
+	  print_queue();
+	  longjmp(init,1);
 	}
-	blocked->context.is_waiting_for=tid;
-	printf("Blocking Thread:%d \n", blocked->context.id);
-	print_queue();
-	TAILQ_REMOVE(&running_queue, blocked, entries);
-	print_queue();
-	TAILQ_INSERT_HEAD(&blocking_queue, blocked, entries);
-
-	longjmp(init,1);
+	else{
+	  return 0;
+	}
+	
 	
 
 	return -1;	//return 'error'
@@ -239,20 +247,34 @@ void ult_init(ult_func f) {
 }
 
 void is_needed_by_process(int tid){
-	struct tailque_entry *pid;
-	TAILQ_FOREACH(pid,&blocking_queue,entries){
-		if(pid->context.id==tid){
-			TAILQ_INSERT_HEAD(&running_queue,pid,entries);
-			TAILQ_REMOVE(&zombie_queue,pid,entries);
-			return;
-		}
-	}
+	struct tailque_entry *item;
+	struct tailque_entry *tmp_item;
+	for (item = TAILQ_FIRST(&blocking_queue); item != NULL; item = tmp_item){
+                tmp_item = TAILQ_NEXT(item, entries);
+		int foo = item->context.is_waiting_for;
+                if (foo == tid) {
+                        /* Remove the item from the tail queue. */
+                        TAILQ_REMOVE(&blocking_queue, item, entries);
+			TAILQ_INSERT_HEAD(&running_queue,item,entries);
+                        /* Free the item as we don’t need it anymore. */
+                        
+
+                        break;
+                }
+        }
+
+
 }
 void schedule(){
 	printf("I'm in the scheduler\n");
 	print_stack_pointer("Stack scheduler");
-	struct tailque_entry *thread=TAILQ_FIRST(&running_queue);
-	longjmp(thread->context.context,1);
+	print_queue();
+	if(!TAILQ_EMPTY(&running_queue)){
+	  struct tailque_entry *thread=TAILQ_FIRST(&running_queue);
+	  global_funct_ptr=thread->context.function;
+	  longjmp(thread->context.context,1);
+	}
+	
 }
 void print_queue(){
 	struct tailque_entry *pid;
