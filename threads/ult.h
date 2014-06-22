@@ -71,4 +71,6 @@ extern int ult_read(int fd, void *buf, int count);
  */
 extern void ult_init(ult_func f); 
 
+extern void print_queue();
+
 

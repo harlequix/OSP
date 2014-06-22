@@ -35,7 +35,10 @@ ult_func global_funct_ptr;
 
 void signalHandlerSpawn( ){	
 	ult_func handler_func_ptr= global_funct_ptr;
+	printf("%p\n", handler_func_ptr );
 	if(setjmp(spawn_buf)){
+		printf("foobar\n");
+		printf("%p\n", handler_func_ptr );
 		handler_func_ptr();
 		//printf("Jump successful!\n");
 		longjmp(init,1);
@@ -129,6 +132,7 @@ void ult_exit(int status) {
 	struct tailque_entry *tcb = TAILQ_FIRST(&running_queue);
 	tcb->context.status=status;
 	is_needed_by_process(tcb->context.id);
+
 	TAILQ_INSERT_TAIL(&zombie_queue, tcb, entries);
 	TAILQ_REMOVE(&running_queue, tcb, entries);
 	printf("FOOOOOOBAR\n");
@@ -152,6 +156,8 @@ void ult_exit(int status) {
 int ult_waitpid(int tid, int *status) {
 	struct tailque_entry *blocked = TAILQ_FIRST(&running_queue);
 	struct tailque_entry *pid;
+	printf("I'm in waitpid\n");
+	print_queue();
 	setjmp(blocked->context.context);
 	TAILQ_FOREACH(pid,&zombie_queue,entries){
 		if(pid->context.id==tid){
@@ -160,9 +166,19 @@ int ult_waitpid(int tid, int *status) {
 		}
 	}
 	blocked->context.is_waiting_for=tid;
-	TAILQ_INSERT_TAIL(&blocking_queue, blocked, entries);
+	printf("Blocking Thread:%d \n", blocked->context.id);
+	print_queue();
 	TAILQ_REMOVE(&running_queue, blocked, entries);
-	longjmp(init,1);
+	print_queue();
+	TAILQ_INSERT_HEAD(&blocking_queue, blocked, entries);
+
+	blocked=TAILQ_FIRST(&running_queue);
+	print_queue();
+	TAILQ_REMOVE(&running_queue, blocked, entries);
+	print_queue();
+	TAILQ_INSERT_HEAD(&blocking_queue, blocked, entries);
+	print_queue();
+	//longjmp(init,1);
 	
 
 	return -1;	//return 'error'
@@ -235,6 +251,22 @@ void is_needed_by_process(int tid){
 	}
 }
 void schedule(){
+	printf("I'm in the scheduler\n");
 	struct tailque_entry *thread=TAILQ_FIRST(&running_queue);
 	longjmp(thread->context.context,1);
+}
+void print_queue(){
+	struct tailque_entry *pid;
+	printf("Running Queue:\n");
+	TAILQ_FOREACH(pid,&running_queue,entries){
+		printf("%d \n", pid->context.id );
+	}
+	printf("Blocking Queue:\n");
+	TAILQ_FOREACH(pid,&blocking_queue,entries){
+		printf("%d %d \n", pid->context.id,pid->context.is_waiting_for );
+	}
+	printf("Zombie Queue:\n");
+	TAILQ_FOREACH(pid,&zombie_queue,entries){
+		printf("%d \n", pid->context.id );
+	}
 }
