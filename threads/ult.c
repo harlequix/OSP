@@ -226,6 +226,7 @@ void ult_init(ult_func f) {
 	TAILQ_INIT(&blocking_queue);
 	TAILQ_INIT(&zombie_queue);
 	printf("Spawing first process\n");
+	print_stack_pointer("Stack Init");
 	
 	ult_spawn(f);
 	struct tailque_entry *tcb_process= TAILQ_FIRST(&running_queue);
@@ -249,6 +250,7 @@ void is_needed_by_process(int tid){
 }
 void schedule(){
 	printf("I'm in the scheduler\n");
+	print_stack_pointer("Stack scheduler");
 	struct tailque_entry *thread=TAILQ_FIRST(&running_queue);
 	longjmp(thread->context.context,1);
 }
