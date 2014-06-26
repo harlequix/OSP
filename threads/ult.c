@@ -24,26 +24,24 @@ void print_stack_pointer( char *info );
 TAILQ_HEAD(,tailque_entry) running_queue;
 TAILQ_HEAD(,tailque_entry) blocking_queue;
 TAILQ_HEAD(,tailque_entry) zombie_queue;
-jmp_buf init;
+jmp_buf init,spawn_buf,spawn_hack, spawn_hack_2, ult_sp;
 void is_needed_by_process(int id);
 void schedule();
+ult_func global_funct_ptr;
+fd_set set;
+int jmpinfo;
+
 
 /*
  This function only exists to tell the process to use an empty stack for the thread
  */
-jmp_buf spawn_buf;
-ult_func global_funct_ptr;
 
 void signalHandlerSpawn( ){	
 	//ult_func handler_func_ptr= global_funct_ptr;
 	//printf("Funtion Pointer vor Sprung: %p\n", handler_func_ptr );
 	print_stack_pointer("Stackpointer vor dem Sprung");
 	if(setjmp(spawn_buf)){
-		printf("Funktion Pointer nach Sprung\n");
-		print_stack_pointer("Stackpointer nach dem Sprung");
-		//printf("%p\n", handler_func_ptr );
 		global_funct_ptr();
-		//printf("Jump successful!\n");
 		longjmp(init,1);
 	}
 	return;
@@ -58,16 +56,28 @@ void signalHandlerSpawn( ){
  Scheduling, sondern die Abarbeitung wird mit dem laufenden Thread
  fortgesetzt, um die Erzeugung mehrerer Threads zu ermoeglichen.
  */
-int ult_spawn(ult_func f) {	
-	id++;
+
+
+int ult_spawn(ult_func f) {
+  id++;
+  global_funct_ptr=f;
+  if(setjmp(ult_sp)){
+    return 0;
+  }
+  else{
+    printf("jumping to spawn hack");
+    longjmp(spawn_hack,1);
+  }
+}
+//dirty^n hack; n \to \infty
+void ult_spawn_hack(){
+	if(setjmp(spawn_hack)){
+	struct sigaction sa;
+	stack_t stack;
 	tcb *spawn;
-  	stack_t stack;
-  	struct sigaction sa;
-  	spawn=(tcb*)malloc(sizeof(tcb));
+	spawn=(tcb*)malloc(sizeof(tcb));
   	spawn->id=id;
-	
   	printf("Setting up stack\n");
-	
 	// Create the new stack
  	stack.ss_flags = 0;
  	stack.ss_size = STACK;
@@ -76,24 +86,32 @@ int ult_spawn(ult_func f) {
     	perror( "Could not allocate stack." );
     	exit( 1 );
   	}
+	if (sigaltstack(&stack, NULL) == -1){
+	  perror("error");
+	}
 	
-  	printf("Altering Signal\n");
+  	//printf("Altering Signal\n");
+  	long unsigned int foo =(long unsigned int) stack.ss_sp;
+  	printf("%lu\n", foo );
 	
   	sa.sa_flags = SA_ONSTACK;
   	sa.sa_handler=&signalHandlerSpawn;
   	sigemptyset( &sa.sa_mask );
-  	sigaction( SIGUSR1, &sa, 0 );
 	
-  	printf("raising Signal\n");
-  	global_funct_ptr=f;
+  	sigaction( SIGUSR1, &sa, 0 );
+  	
+
+	
+  	//Stack is somewhat broken, so we need to reload funktion pointer
+  	//global_funct_ptr=f;
 	
   	raise( SIGUSR1 );
 	
-  	printf("back from signalhandler\n");
-  	printf("Saving tcb and pushing into the queue\n");
+  	//printf("back from signalhandler\n");
+  	//printf("Saving tcb and pushing into the queue\n");
 	
   	memcpy(spawn->context, spawn_buf, sizeof(jmp_buf));
-  	spawn->function=f;
+  	spawn->function=global_funct_ptr;
   	spawn->id=id;
   	spawn->status=0;
   	spawn->stack=stack;
@@ -101,13 +119,14 @@ int ult_spawn(ult_func f) {
 	item = (struct tailque_entry*) malloc(sizeof(struct tailque_entry));
 	item->context=*spawn;
 	TAILQ_INSERT_TAIL(&running_queue, item, entries);
-	printf("checking if process is in queue\n");
-	//TAILQ_FOREACH(item, &running_queue, entries){
-	//	printf("TID: %d\n", item->context.id);
-	//}
+	longjmp(ult_sp,1);
+	}
+	else{
+	  printf("Setting up spawn hack");
+	}
 	
 	
-	return id;		
+			
 }
 
 
@@ -118,13 +137,21 @@ int ult_spawn(ult_func f) {
  */
 void ult_yield() {
 	struct tailque_entry *tcb = TAILQ_FIRST(&running_queue);
+	if (setjmp(tcb->context.context)) {
+		printf("back in yield\n");
+		return;
+	}
+	else {
+		//print_stack_pointer("Stack yield:");
+		//TODO: check for identical process hereafter (or if running_queue only continues only on )
+		TAILQ_REMOVE(&running_queue, tcb, entries);
+		TAILQ_INSERT_TAIL(&running_queue, tcb, entries);
+		//print_queue();
+		//printf("FOOOOOOBAR\n");
+		longjmp(init,1);
+	  
+	}
 	
-	//TODO: check for identical process hereafter (or if running_queue only continues only on )
-	TAILQ_REMOVE(&running_queue, tcb, entries);
-	TAILQ_INSERT_TAIL(&running_queue, tcb, entries);
-	print_queue();
-	printf("FOOOOOOBAR\n");
-	longjmp(init,1);
 }
 
 
@@ -140,8 +167,8 @@ void ult_exit(int status) {
 	TAILQ_REMOVE(&running_queue, tcb, entries);
 	TAILQ_INSERT_HEAD(&zombie_queue, tcb, entries);
 	is_needed_by_process(tcb->context.id);
-	print_queue();
-	printf("FOOOOOOBAR\n");
+	//print_queue();
+	//printf("FOOOOOOBAR\n");
 	longjmp(init,1);
 }
 
@@ -164,30 +191,30 @@ int ult_waitpid(int tid, int *status) {
 	struct tailque_entry *pid;
 	printf("I'm in waitpid\n");
 	print_queue();
-	if(!setjmp(blocked->context.context)){
-	  TAILQ_FOREACH(pid,&zombie_queue,entries){
-		if(pid->context.id==tid){
-			*status=pid->context.status;
-			return 0;
-		}
+	if(tid>id){
+	  return -1;
+	}
+	  if(!setjmp(blocked->context.context)){
+	    TAILQ_FOREACH(pid,&zombie_queue,entries){
+		  if(pid->context.id==tid){
+			  *status=pid->context.status;
+			  return 0;
+		  }
+	    }
+	    blocked->context.is_waiting_for=tid;
+	    printf("Blocking Thread:%d \n", blocked->context.id);
+	    print_queue();
+	    TAILQ_REMOVE(&running_queue, blocked, entries);
+	    
+	    TAILQ_INSERT_HEAD(&blocking_queue, blocked, entries);
+	    print_queue();
+	    longjmp(init,1);
 	  }
-	  blocked->context.is_waiting_for=tid;
-	  printf("Blocking Thread:%d \n", blocked->context.id);
-	  print_queue();
-	  TAILQ_REMOVE(&running_queue, blocked, entries);
-	  
-	  TAILQ_INSERT_HEAD(&blocking_queue, blocked, entries);
-	  print_queue();
-	  longjmp(init,1);
-	}
-	else{
-	  return 0;
-	}
-	
-	
-
-	return -1;	//return 'error'
+	  else{
+	    return 0;
+	  }
 }
+
 
 
 
@@ -206,8 +233,45 @@ int ult_waitpid(int tid, int *status) {
  Systemrufe blockieren koennen.
  */
 int ult_read(int fd, void *buf, int count) {
-	return 0;
+	jmp_buf read_buf;
+	struct timeval timeout;
+	int vorhanden;
+	size_t counts=count;
+	
+	//setjmp um spŠter wieder hierher zu kommen wenn gelesen werden kann
+	setjmp(read_buf);
+	
+	//timeout time
+	timeout.tv_sec = 0;
+	timeout.tv_usec = 50;
+	
+	//fd in set makieren
+	if (!FD_ISSET(fd, &set)) {
+		FD_SET(fd, &set);       
+	}
+	
+	//sind Daten zum lesen vorhanden?
+	vorhanden = select(fd + 1, &set, NULL, NULL, &timeout);
+	
+	//wenn vorhanden lesen sonst Thread in waitqueue
+	if (vorhanden) {
+		read(fd, buf, counts);  
+		
+		FD_CLR(fd, &set);
+		return 1;
+	} 
+	else {
+		struct tailque_entry *tcb = TAILQ_FIRST(&running_queue);
+		TAILQ_REMOVE(&running_queue, tcb, entries);
+		//rŸcksprung Šndern, damit read erneut versucht wird und nicht ganze Funktion neu
+		memcpy(tcb->context.context, read_buf, sizeof(jmp_buf));
+		//*tcb->context.context=*read_buf;
+		TAILQ_INSERT_TAIL(&blocking_queue, tcb, entries);		
+		longjmp(init,1);
+	}	
+	return 0;	
 }
+
 
 
 // start scheduling and spawn a thread running function f
@@ -217,24 +281,19 @@ int ult_read(int fd, void *buf, int count) {
  welchem heraus dann alle anderen Threads erzeugt werden und welcher danach mit
  ult_waitpid() auf das Ende aller Threads wartet. 
  */
-/*struct tailque_entry{
- tcb context;
- TAILQ_ENTRY(tailque_entry) entries;
- //TODO: eventually unifying tcb and tailque_entry
- };
- TAILQ_HEAD(,tailque_entry) running_queue;
- TAILQ_HEAD(,tailque_entry) blocking_queue;
- TAILQ_HEAD(,tailque_entry) zombie_queue;
- */
-int jmpinfo;
+
 void ult_init(ult_func f) {
 	
-	printf("Setting up queue\n");
+	//printf("Setting up queue\n");
 	TAILQ_INIT(&running_queue);
 	TAILQ_INIT(&blocking_queue);
 	TAILQ_INIT(&zombie_queue);
-	printf("Spawing first process\n");
-	print_stack_pointer("Stack Init");
+	//printf("Spawing first process\n");
+	//print_stack_pointer("Stack Init");
+	if(!setjmp(spawn_hack_2)){
+	  printf("setting up spawn hack");
+	  ult_spawn_hack();
+	}
 	
 	ult_spawn(f);
 	struct tailque_entry *tcb_process= TAILQ_FIRST(&running_queue);
@@ -245,30 +304,27 @@ void ult_init(ult_func f) {
 		longjmp(tcb_process->context.context,1);
 	}
 }
-
+/*checks whether tid is needed by a process in blocking queue, if yes, removes item and places it in front of running queue
+*/
 void is_needed_by_process(int tid){
 	struct tailque_entry *item;
 	struct tailque_entry *tmp_item;
 	for (item = TAILQ_FIRST(&blocking_queue); item != NULL; item = tmp_item){
-                tmp_item = TAILQ_NEXT(item, entries);
+        tmp_item = TAILQ_NEXT(item, entries);
 		int foo = item->context.is_waiting_for;
-                if (foo == tid) {
-                        /* Remove the item from the tail queue. */
-                        TAILQ_REMOVE(&blocking_queue, item, entries);
+        if (foo == tid) {
+       		TAILQ_REMOVE(&blocking_queue, item, entries);
 			TAILQ_INSERT_HEAD(&running_queue,item,entries);
-                        /* Free the item as we don’t need it anymore. */
-                        
-
-                        break;
-                }
         }
+    }
 
-
+/*Easy round robin scheduler,assumes that rotation has already been done */
 }
 void schedule(){
-	printf("I'm in the scheduler\n");
-	print_stack_pointer("Stack scheduler");
-	print_queue();
+	//printf("I'm in the scheduler\n");
+	//print_stack_pointer("Stack scheduler");
+	//print_queue();
+	//TODO: implement error handling if running_queue is empty and blocked queue is not empty
 	if(!TAILQ_EMPTY(&running_queue)){
 	  struct tailque_entry *thread=TAILQ_FIRST(&running_queue);
 	  global_funct_ptr=thread->context.function;
@@ -276,6 +332,7 @@ void schedule(){
 	}
 	
 }
+/*debug function*/
 void print_queue(){
 	struct tailque_entry *pid;
 	printf("Running Queue:\n");
@@ -292,7 +349,7 @@ void print_queue(){
 	}
 }
 
-void print_stack_pointer( char *info )
+/*void print_stack_pointer( char *info )
 {
   long stackp = 0;
   long basep = 0;
@@ -303,4 +360,4 @@ void print_stack_pointer( char *info )
   printf("%s Stackpointer : %lu Basepointer: %lu\n",info,stackp,basep);
 
   return;
-}
+}*/

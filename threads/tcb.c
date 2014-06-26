@@ -7,6 +7,7 @@
  Kontext-Datenstruktur (wird der gespeicherte Kontext später wieder 
  in den Prozessor geladen, so wird die Abarbeitung hinter tcb_getcontext() fortgesetzt)*/
 void tcb_getcontext(tcb *t) {
+  setjmp(t->context);
 }
 
 /*lädt den Kontext aus der übergebenen Datenstruktur in den Prozessor
@@ -18,6 +19,12 @@ void tcb_setcontext(const tcb *t) {
  aus der zweiten Datenstruktur newTcb in den Prozessor (beim erneuten Laden des gespeicherten
  Kontextes taucht das Programm wieder aus dieser Funktion auf)*/
 void tcb_swapcontext(tcb *ourTcb, tcb *newTcb) {
+  if(setjmp(ourTcb->context)){
+    return;
+  }
+  else{
+    tcb_setcontext(newTcb);
+  }
 }
 
 /*erzeugt aus einer als Funktionszeiger übergebenen Funktion einen neuen Kontext;
