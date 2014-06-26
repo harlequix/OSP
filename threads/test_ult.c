@@ -34,7 +34,7 @@ void threadB()
 
 void myInit()
 {
-    print_stack_pointer("Init");
+    //print_stack_pointer("Init");
     int cpid[2],i, status;
     printf("spawn A\n"); fflush(stdout);
     cpid[0] = ult_spawn(threadA);
