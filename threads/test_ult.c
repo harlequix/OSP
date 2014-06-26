@@ -10,7 +10,7 @@ void print_stack_pointer( char *info );
 
 void threadA()
 {
-	print_stack_pointer("Thread A");
+	//print_stack_pointer("Thread A");
 	char out[129];
 	//file benutzen
 	int  handle = open("/dev/random", O_RDONLY);
@@ -26,7 +26,7 @@ void threadA()
 }
 void threadB()
 {
-  print_stack_pointer("Thread B");
+ // print_stack_pointer("Thread B");
 	printf("blub\n");
 	ult_exit(0);
 }
@@ -38,7 +38,7 @@ void myInit()
     int cpid[2],i, status;
     printf("spawn A\n"); fflush(stdout);
     cpid[0] = ult_spawn(threadA);
-    //printf("spawn B\n"); fflush(stdout);
+    printf("spawn B\n"); fflush(stdout);
     int foo =4;
     if(foo==4);
     cpid[1] = ult_spawn(threadB);

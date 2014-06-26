@@ -39,7 +39,7 @@ int jmpinfo;
 void signalHandlerSpawn( ){	
 	//ult_func handler_func_ptr= global_funct_ptr;
 	//printf("Funtion Pointer vor Sprung: %p\n", handler_func_ptr );
-	print_stack_pointer("Stackpointer vor dem Sprung");
+	//print_stack_pointer("Stackpointer vor dem Sprung");
 	if(setjmp(spawn_buf)){
 		global_funct_ptr();
 		longjmp(init,1);
@@ -65,7 +65,7 @@ int ult_spawn(ult_func f) {
     return 0;
   }
   else{
-    printf("jumping to spawn hack");
+   // printf("jumping to spawn hack");
     longjmp(spawn_hack,1);
   }
 }
@@ -77,7 +77,7 @@ void ult_spawn_hack(){
 	tcb *spawn;
 	spawn=(tcb*)malloc(sizeof(tcb));
   	spawn->id=id;
-  	printf("Setting up stack\n");
+  	//printf("Setting up stack\n");
 	// Create the new stack
  	stack.ss_flags = 0;
  	stack.ss_size = STACK;
@@ -91,8 +91,8 @@ void ult_spawn_hack(){
 	}
 	
   	//printf("Altering Signal\n");
-  	long unsigned int foo =(long unsigned int) stack.ss_sp;
-  	printf("%lu\n", foo );
+  	//long unsigned int foo =(long unsigned int) stack.ss_sp;
+  	//printf("%lu\n", foo );
 	
   	sa.sa_flags = SA_ONSTACK;
   	sa.sa_handler=&signalHandlerSpawn;
@@ -122,7 +122,7 @@ void ult_spawn_hack(){
 	longjmp(ult_sp,1);
 	}
 	else{
-	  printf("Setting up spawn hack");
+	  //printf("Setting up spawn hack");
 	}
 	
 	
@@ -138,7 +138,7 @@ void ult_spawn_hack(){
 void ult_yield() {
 	struct tailque_entry *tcb = TAILQ_FIRST(&running_queue);
 	if (setjmp(tcb->context.context)) {
-		printf("back in yield\n");
+		//printf("back in yield\n");
 		return;
 	}
 	else {
@@ -189,8 +189,8 @@ void ult_exit(int status) {
 int ult_waitpid(int tid, int *status) {
 	struct tailque_entry *blocked = TAILQ_FIRST(&running_queue);
 	struct tailque_entry *pid;
-	printf("I'm in waitpid\n");
-	print_queue();
+	//printf("I'm in waitpid\n");
+	//print_queue();
 	if(tid>id){
 	  return -1;
 	}
@@ -202,12 +202,12 @@ int ult_waitpid(int tid, int *status) {
 		  }
 	    }
 	    blocked->context.is_waiting_for=tid;
-	    printf("Blocking Thread:%d \n", blocked->context.id);
-	    print_queue();
+	    //printf("Blocking Thread:%d \n", blocked->context.id);
+	    //print_queue();
 	    TAILQ_REMOVE(&running_queue, blocked, entries);
 	    
 	    TAILQ_INSERT_HEAD(&blocking_queue, blocked, entries);
-	    print_queue();
+	    //print_queue();
 	    longjmp(init,1);
 	  }
 	  else{
@@ -291,7 +291,7 @@ void ult_init(ult_func f) {
 	//printf("Spawing first process\n");
 	//print_stack_pointer("Stack Init");
 	if(!setjmp(spawn_hack_2)){
-	  printf("setting up spawn hack");
+	 // printf("setting up spawn hack");
 	  ult_spawn_hack();
 	}
 	
@@ -317,9 +317,9 @@ void is_needed_by_process(int tid){
 			TAILQ_INSERT_HEAD(&running_queue,item,entries);
         }
     }
-
-/*Easy round robin scheduler,assumes that rotation has already been done */
 }
+/*Easy round robin scheduler,assumes that rotation has already been done */
+
 void schedule(){
 	//printf("I'm in the scheduler\n");
 	//print_stack_pointer("Stack scheduler");
@@ -333,7 +333,7 @@ void schedule(){
 	
 }
 /*debug function*/
-void print_queue(){
+/*void print_queue(){
 	struct tailque_entry *pid;
 	printf("Running Queue:\n");
 	TAILQ_FOREACH(pid,&running_queue,entries){
@@ -348,7 +348,7 @@ void print_queue(){
 		printf("%d \n", pid->context.id );
 	}
 }
-
+*/
 /*void print_stack_pointer( char *info )
 {
   long stackp = 0;
