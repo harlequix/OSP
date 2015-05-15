@@ -14,16 +14,15 @@ static char prompt_param[PROCFS_MAX_SIZE];
 module_param_string(prompt_param,prompt_param, PROCFS_MAX_SIZE, 0000);
 MODULE_PARM_DESC(prompt_param, "prompt string");
 static struct ctl_table_header *sar_table_header;
-
-int 
-sar_proc_read(char *buffer,
+/*creating reading function for proc file */
+int sar_proc_read(char *buffer,
 	      char **buffer_location,
 	      off_t offset, int buffer_length, int *eof, void *data)
 {
   return sprintf(buffer, "%s,lastminute,%lu\n",prompt_param, jiffies/HZ);
 }
 
-
+/*creating writing function for procfile */
 int procfile_write(struct file *file, const char *buffer, unsigned long count,
 		   void *data)
 {
@@ -40,7 +39,7 @@ int procfile_write(struct file *file, const char *buffer, unsigned long count,
 	
 	return procfs_buffer_size;
 }
-
+/* defining new prompt table */
 static ctl_table test_table[] = {
         {
         .ctl_name       = CTL_UNNUMBERED,
@@ -53,7 +52,7 @@ static ctl_table test_table[] = {
 };
      
 
-
+/* defining new mother syscall table and add prompt table as child, see nested syscall tables */
     static ctl_table test_root_table[] = {
             {
                     .ctl_name       = CTL_KERN,
@@ -63,14 +62,14 @@ static ctl_table test_table[] = {
             },
             {}
     };
-
+/* init function  */
 static int __init sar_init(void)
 {
 	sar_table_header = register_sysctl_table(test_root_table);
   if (!sar_table_header) {
 	 return -EFAULT;
  }
- 
+ /* creating procfile: create entry, add read function and write function. Note: a struct can contain variables and functions via funtion pointers, so it's like a bloody object */
   struct proc_dir_entry *sarlkm;
   sarlkm = create_proc_entry( PROCFS_NAME, 0666,NULL );
   sarlkm->read_proc = sar_proc_read;
